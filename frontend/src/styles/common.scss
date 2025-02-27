@@ -1,0 +1,116 @@
+// 页面通用布局样式
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+
+  @media screen and (max-width: 768px) {
+    padding: 10px;
+  }
+}
+
+// 卡片通用样式
+.card-section {
+  margin-bottom: 20px;
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 0;
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+      font-size: 16px;
+
+      .count-tag {
+        font-weight: normal;
+        font-size: 13px;
+      }
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    @media screen and (max-width: 576px) {
+      flex-direction: column;
+      align-items: stretch;
+
+      .header-actions {
+        justify-content: flex-end;
+      }
+    }
+  }
+}
+
+// Element Plus 组件样式覆盖
+:deep(.el-card__body) {
+  padding: 15px;
+
+  @media screen and (max-width: 576px) {
+    padding: 10px;
+  }
+}
+
+// 表单组件通用样式
+.form-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+
+  @media screen and (max-width: 768px) {
+    margin: 15px 0;
+  }
+
+  .form-item {
+    &.full-width {
+      width: 100%;
+    }
+
+    &.half-width {
+      width: calc(50% - 5px);
+
+      @media screen and (max-width: 576px) {
+        width: 100%;
+      }
+    }
+  }
+}
+
+// 内容区域通用样式
+.content-section {
+  min-height: 200px;
+  
+  &.empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 0;
+  }
+}
+
+// 加载更多按钮样式
+.load-more {
+  margin-top: 20px;
+  text-align: center;
+  padding: 10px 0;
+}
+
+// 响应式表格样式
+.responsive-table {
+  :deep(.el-table) {
+    @media screen and (max-width: 768px) {
+      font-size: 13px;
+    }
+  }
+} 
