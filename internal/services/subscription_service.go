@@ -85,9 +85,76 @@ func (s *SubscriptionService) GetSubscriptions() []*models.Subscription {
 }
 
 // MergeSubscriptions 合并订阅
-func (s *SubscriptionService) MergeSubscriptions(ids []string) error {
-    // TODO: 实现订阅合并逻辑
-    return nil
+func (s *SubscriptionService) MergeSubscriptions(ids []string) (*models.MergeResult, error) {
+    utils.LogInfo("开始合并订阅，订阅数量：%d", len(ids))
+
+    // 验证所有订阅ID是否存在
+    nodes := make([]*models.Node, 0)
+    for _, id := range ids {
+        if _, exists := s.subscriptions[id]; !exists {
+            return nil, fmt.Errorf("subscription not found: %s", id)
+        }
+
+        // 收集该订阅下的所有节点
+        for _, node := range s.nodes {
+            if node.SubscriptionID == id {
+                nodes = append(nodes, node)
+            }
+        }
+    }
+
+    // 创建合并结果
+    result := &models.MergeResult{
+        Timestamp: time.Now(),
+        NodeCount: len(nodes),
+    }
+
+    // 生成合并后的文件名
+    fileName := fmt.Sprintf("merged_%s.yaml", time.Now().Format("20060102150405"))
+    filePath := filepath.Join(config.GlobalConfig.Storage.Path, fileName)
+    
+    // 保存合并后的节点到文件
+    if err := s.saveNodesToFile(nodes, filePath); err != nil {
+        return nil, fmt.Errorf("save merged nodes failed: %v", err)
+    }
+
+    // 设置文件访问URL
+    result.FileURL = fmt.Sprintf("/subscriptions/%s", fileName)
+
+    // 记录合并日志
+    utils.LogSubscriptionMerge(len(ids))
+
+    return result, nil
+}
+
+// saveNodesToFile 保存节点到文件
+func (s *SubscriptionService) saveNodesToFile(nodes []*models.Node, filePath string) error {
+    // 创建YAML格式的节点列表
+    nodeList := struct {
+        Proxies []map[string]interface{} `yaml:"proxies"`
+    }{
+        Proxies: make([]map[string]interface{}, 0, len(nodes)),
+    }
+
+    // 转换节点格式
+    for _, node := range nodes {
+        proxy := map[string]interface{}{
+            "name":   node.Alias,
+            "type":   node.Type,
+            "server": node.Address,
+            "port":   node.Port,
+        }
+        nodeList.Proxies = append(nodeList.Proxies, proxy)
+    }
+
+    // 序列化为YAML
+    data, err := yaml.Marshal(nodeList)
+    if err != nil {
+        return fmt.Errorf("marshal nodes failed: %v", err)
+    }
+
+    // 写入文件
+    return os.WriteFile(filePath, data, 0644)
 }
 
 // TestNodes 测试节点
@@ -390,4 +457,57 @@ func (s *SubscriptionService) getNodeProtocol(proxy map[string]interface{}) stri
     default:
         return "unknown"
     }
+}
+
+// UpdateAllSubscriptions 更新所有订阅
+func (s *SubscriptionService) UpdateAllSubscriptions() error {
+    utils.LogInfo("开始更新所有订阅")
+    
+    for _, sub := range s.subscriptions {
+        // 更新订阅
+        result, err := utils.ParseSubscription(sub.URL)
+        if err != nil {
+            utils.LogError("更新订阅失败: %v", err)
+            continue
+        }
+
+        // 更新节点
+        for _, node := range result.Nodes {
+            s.nodes[node.ID] = node
+        }
+
+        // 更新订阅信息
+        sub.NodeCount = len(result.Nodes)
+        sub.UpdatedAt = time.Now()
+    }
+
+    utils.LogInfo("所有订阅更新完成")
+    return nil
+}
+
+// TestAllNodes 测试所有节点
+func (s *SubscriptionService) TestAllNodes() error {
+    utils.LogInfo("开始测试所有节点")
+
+    config := models.SpeedTestConfig{
+        MaxLatency: config.GlobalConfig.Filter.MaxLatency,
+        TestURL:    "http://speedtest.net",  // 这里应该从配置文件中读取
+        Timeout:    10,                      // 这里应该从配置文件中读取
+        Concurrent: config.GlobalConfig.Subscription.MaxConcurrent,
+    }
+
+    result, err := s.TestNodes(config)
+    if err != nil {
+        utils.LogError("节点测试失败: %v", err)
+        return err
+    }
+
+    utils.LogSpeedTest(
+        result.TotalCount,
+        result.LatencyTested,
+        result.LatencyDropped,
+        result.SpeedTested,
+    )
+
+    return nil
 } 

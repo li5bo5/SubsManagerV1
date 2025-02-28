@@ -115,33 +115,17 @@ type TestNodesRequest struct {
     Concurrent int     `json:"concurrent" binding:"required"`
 }
 
-// TestNodes 测试节点速度
+// TestNodes 测试节点
 func TestNodes(c *gin.Context) {
     var req TestNodesRequest
     if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        c.JSON(http.StatusBadRequest, Response{
+            Code:    400,
+            Message: "Invalid request parameters",
+        })
         return
     }
 
-    // 验证参数
-    if req.MaxLatency <= 0 {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "max_latency must be greater than 0"})
-        return
-    }
-    if req.Timeout <= 0 {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "timeout must be greater than 0"})
-        return
-    }
-    if req.Concurrent <= 0 {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "concurrent must be greater than 0"})
-        return
-    }
-    if req.TestURL == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "test_url is required"})
-        return
-    }
-
-    // 创建测试配置
     config := models.SpeedTestConfig{
         MaxLatency: req.MaxLatency,
         TestURL:    req.TestURL,
@@ -150,13 +134,20 @@ func TestNodes(c *gin.Context) {
     }
 
     // 执行节点测试
-    result, err := services.GetSubscriptionService().TestNodes(config)
+    result, err := services.DefaultSubscriptionService.TestNodes(config)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        c.JSON(http.StatusInternalServerError, Response{
+            Code:    500,
+            Message: err.Error(),
+        })
         return
     }
 
-    c.JSON(http.StatusOK, result)
+    c.JSON(http.StatusOK, Response{
+        Code:    200,
+        Message: "Success",
+        Data:    result,
+    })
 }
 
 // FilterNodesRequest 筛选节点请求

@@ -2,8 +2,8 @@ package models
 
 import "time"
 
-// SubscriptionHistory 订阅历史记录
-type SubscriptionHistory struct {
+// SubscriptionFileHistory 订阅文件历史记录
+type SubscriptionFileHistory struct {
     FileName    string    `json:"file_name"`    // 文件名
     LocalURL    string    `json:"local_url"`    // 本地访问地址
     GenerateTime time.Time `json:"generate_time"` // 生成时间
@@ -20,9 +20,12 @@ type NodeStatus struct {
 
 // SystemStatus 系统状态
 type SystemStatus struct {
-    NodeStatus         NodeStatus            `json:"node_status"`          // 节点状态
-    LatestSubFile     string                `json:"latest_sub_file"`      // 最新的sub文件本地地址
-    LatestInputFile   string                `json:"latest_input_file"`    // 最新的Sub-Input文件本地地址
-    SubHistory        []SubscriptionHistory `json:"sub_history"`          // 近三次的订阅历史记录
-    LastUpdateTime    time.Time             `json:"last_update_time"`     // 最后更新时间
+    NodeStatus         NodeStatus                 `json:"node_status"`          // 节点状态
+    LatestSubFile     string                     `json:"latest_sub_file"`      // 最新的sub文件本地地址
+    LatestInputFile   string                     `json:"latest_input_file"`    // 最新的Sub-Input文件本地地址
+    SubHistory        []SubscriptionFileHistory  `json:"sub_history"`          // 近三次的订阅历史记录
+    LastUpdateTime    time.Time                  `json:"last_update_time"`     // 最后更新时间
+    LastTaskTime     time.Time                  `json:"last_task_time"`      // 最后任务执行时间
+    LastTaskName     string                     `json:"last_task_name"`      // 最后执行的任务名称
+    LastTaskStatus   string                     `json:"last_task_status"`    // 最后任务执行状态
 } 

@@ -7,7 +7,7 @@ import (
 	"context"
 
 	"github.com/robfig/cron/v3"
-	"SubsManagerV1/internal/models"
+	"subsmanager/internal/models"
 )
 
 // SchedulerService 定义调度器服务

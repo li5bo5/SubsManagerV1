@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/your-project/handlers"
+	"subsmanager/internal/handlers"
 )
 
 func NewRouter(handler *handlers.Handler) *mux.Router {

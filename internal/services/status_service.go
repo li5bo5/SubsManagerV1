@@ -6,6 +6,7 @@ import (
     "sort"
     "subsmanager/config"
     "subsmanager/internal/models"
+    "subsmanager/internal/utils"
     "sync"
     "time"
 )
@@ -17,7 +18,7 @@ type StatusService struct {
     config            *config.Config
     status            *models.SystemStatus
     historyMutex      sync.RWMutex
-    history           []models.SubscriptionHistory
+    history           []models.SubscriptionFileHistory
 }
 
 // NewStatusService 创建状态监控服务
@@ -27,7 +28,7 @@ func NewStatusService(subService *SubscriptionService, nodeService *NodeService,
         nodeService:        nodeService,
         config:            config,
         status:            &models.SystemStatus{},
-        history:           make([]models.SubscriptionHistory, 0),
+        history:           make([]models.SubscriptionFileHistory, 0),
     }
 }
 
@@ -67,7 +68,7 @@ func (s *StatusService) AddSubscriptionHistory(fileName string, nodeCount int) {
     defer s.historyMutex.Unlock()
 
     // 创建新的历史记录
-    history := models.SubscriptionHistory{
+    history := models.SubscriptionFileHistory{
         FileName:     fileName,
         LocalURL:     fmt.Sprintf("http://localhost:%d/subscriptions/%s", s.config.Server.Port, fileName),
         GenerateTime: time.Now(),
@@ -103,6 +104,24 @@ func (s *StatusService) getLatestInputFile() string {
         return s.history[0].FileName
     }
     return ""
+}
+
+// AddTaskHistory 添加任务历史记录
+func (s *StatusService) AddTaskHistory(result *models.TaskResult) {
+    s.historyMutex.Lock()
+    defer s.historyMutex.Unlock()
+
+    // 更新系统状态
+    s.status.LastTaskTime = result.EndTime
+    s.status.LastTaskName = result.TaskID
+    s.status.LastTaskStatus = result.Status
+
+    // 记录日志
+    if result.Error != "" {
+        utils.LogError("任务执行失败: %s - %v", result.TaskID, result.Error)
+    } else {
+        utils.LogInfo("任务执行成功: %s", result.TaskID)
+    }
 }
 
 // GetSystemStatus 获取系统状态

@@ -3,6 +3,10 @@ package services
 import (
     "fmt"
     "time"
+    "subsmanager/internal/models"
+    "subsmanager/internal/utils"
+    "os"
+    "gopkg.in/yaml.v3"
 )
 
 // FilterConfig 节点筛选配置
@@ -13,15 +17,14 @@ type FilterConfig struct {
 
 // FilterResult 筛选结果
 type FilterResult struct {
-    Nodes       []*Node    `json:"nodes"`        // 筛选后的节点列表
-    TotalNodes  int        `json:"total_nodes"`  // 筛选后的节点总数
-    FilterTime  time.Time  `json:"filter_time"`  // 筛选时间
+    Nodes       []*models.Node    `json:"nodes"`        // 筛选后的节点列表
+    TotalNodes  int              `json:"total_nodes"`  // 筛选后的节点总数
+    FilterTime  time.Time        `json:"filter_time"`  // 筛选时间
 }
 
 // NodeFilter 节点筛选器
 type NodeFilter struct {
     config  *FilterConfig
-    logger  *Logger
 }
 
 // generateFileName 生成订阅文件名
@@ -31,111 +34,76 @@ func (nf *NodeFilter) generateFileName() string {
 }
 
 // NewNodeFilter 创建节点筛选器
-func NewNodeFilter(config *FilterConfig, logger *Logger) *NodeFilter {
+func NewNodeFilter(config *FilterConfig) *NodeFilter {
     return &NodeFilter{
         config: config,
-        logger: logger,
     }
 }
 
 // FilterNodes 筛选节点
-func (nf *NodeFilter) FilterNodes(nodes []*Node) (*FilterResult, error) {
+func (nf *NodeFilter) FilterNodes(nodes []*models.Node) (*FilterResult, error) {
     result := &FilterResult{
         FilterTime: time.Now(),
     }
 
-    // 记录开始筛选
-    nf.logger.Info("开始节点筛选", map[string]interface{}{
-        "max_latency": nf.config.MaxLatency,
-        "min_speed":   nf.config.MinSpeed,
-        "total_nodes": len(nodes),
-    })
+    utils.LogInfo("开始节点筛选")
 
-    // 筛选符合条件的节点
+    validNodes := make([]*models.Node, 0)
     for _, node := range nodes {
-        // 跳过未测速的节点
-        if node.TestTime.IsZero() {
+        // 检查节点是否已测试
+        if node.LastTestedAt.IsZero() {
             continue
         }
 
-        // 检查延迟和速度是否满足条件
-        if node.Latency <= nf.config.MaxLatency && node.Speed >= nf.config.MinSpeed {
-            result.Nodes = append(result.Nodes, node)
+        // 检查延迟
+        if node.Latency > nf.config.MaxLatency {
+            continue
         }
+
+        // 检查速度
+        if node.DownloadSpeed < nf.config.MinSpeed {
+            continue
+        }
+
+        validNodes = append(validNodes, node)
     }
 
-    result.TotalNodes = len(result.Nodes)
+    result.Nodes = validNodes
+    result.TotalNodes = len(validNodes)
 
-    // 记录筛选结果
-    nf.logger.Info("节点筛选完成", map[string]interface{}{
-        "filtered_nodes": result.TotalNodes,
-        "total_nodes":   len(nodes),
-    })
+    utils.LogNodeFilter(nf.config.MaxLatency, nf.config.MinSpeed, len(validNodes))
 
     return result, nil
 }
 
-// GenerateSubscription 生成订阅文件
-func (nf *NodeFilter) GenerateSubscription(nodes []*Node) (*Subscription, error) {
-    if len(nodes) == 0 {
-        return nil, fmt.Errorf("没有可用的节点")
-    }
-
-    // 创建新的订阅
-    sub := &Subscription{
-        ID:        fmt.Sprintf("sub_%d", time.Now().Unix()),
-        Name:      "优选节点订阅",
-        Type:      "yaml", // 默认使用yaml格式
+// GenerateSubscription 生成订阅
+func (nf *NodeFilter) GenerateSubscription(nodes []*models.Node) (*models.Subscription, error) {
+    sub := &models.Subscription{
+        ID:        fmt.Sprintf("filtered-%s", time.Now().Format("20060102150405")),
+        Name:      fmt.Sprintf("优选节点-%s", time.Now().Format("01-02 15:04")),
+        Type:      "mixed",
+        NodeCount: len(nodes),
+        CreatedAt: time.Now(),
         UpdatedAt: time.Now(),
-        Nodes:     nodes,
-    }
-
-    // 记录订阅生成
-    nf.logger.Info("生成订阅文件", map[string]interface{}{
-        "node_count": len(nodes),
-        "sub_type":   sub.Type,
-    })
-
-    // 添加订阅历史记录
-    if err := DefaultSubscriptionService.AddSubscriptionHistory(
-        sub.ID,
-        models.ActionGenerate,
-        len(nodes),
-        fmt.Sprintf("生成优选节点订阅，共%d个节点", len(nodes)),
-    ); err != nil {
-        nf.logger.Error("添加订阅历史记录失败", map[string]interface{}{
-            "error": err.Error(),
-        })
-        // 不中断流程，继续返回订阅
     }
 
     return sub, nil
 }
 
 // SaveSubscription 保存订阅到文件
-func (nf *NodeFilter) SaveSubscription(sub *Subscription, filePath string) error {
-    // 将订阅内容序列化为YAML格式
-    content, err := sub.ToYAML()
+func (nf *NodeFilter) SaveSubscription(sub *models.Subscription, filePath string) error {
+    content, err := yaml.Marshal(sub)
     if err != nil {
-        nf.logger.Error("订阅序列化失败", map[string]interface{}{
-            "error": err.Error(),
-        })
+        utils.LogError("订阅序列化失败: %v", err)
         return fmt.Errorf("订阅序列化失败: %v", err)
     }
 
-    // 写入文件
-    err = WriteFile(filePath, content)
+    err = os.WriteFile(filePath, content, 0644)
     if err != nil {
-        nf.logger.Error("保存订阅文件失败", map[string]interface{}{
-            "error": err.Error(),
-            "path":  filePath,
-        })
+        utils.LogError("保存订阅文件失败: %v", err)
         return fmt.Errorf("保存订阅文件失败: %v", err)
     }
 
-    nf.logger.Info("订阅文件保存成功", map[string]interface{}{
-        "path": filePath,
-    })
-
+    utils.LogInfo("订阅文件保存成功: %s", filePath)
     return nil
 } 
