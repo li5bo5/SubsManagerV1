@@ -7,7 +7,7 @@
           <span>订阅导入</span>
         </div>
       </template>
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="80px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入订阅名称" :disabled="loading" />
         </el-form-item>
@@ -40,8 +40,8 @@
       <el-table
         v-loading="loading"
         :data="subscriptions"
-        @selection-change="handleSelectionChange"
         style="width: 100%"
+        @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" />
         <el-table-column prop="name" label="订阅名称" min-width="120" />

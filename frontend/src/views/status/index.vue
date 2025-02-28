@@ -1,157 +1,108 @@
+<!-- 状态监控页面 -->
 <template>
   <div class="status page-container">
-    <!-- 系统状态 -->
+    <!-- 节点状态 -->
     <el-card class="card-section">
       <template #header>
         <div class="section-header">
           <div class="header-title">
-            <span>系统状态</span>
-          </div>
-          <div class="header-actions">
-            <el-tooltip 
-              content="刷新状态" 
-              placement="top"
-            >
-              <el-button 
-                :icon="Refresh"
-                circle
-                @click="refreshStatus"
-              />
-            </el-tooltip>
+            <span>节点状态</span>
           </div>
         </div>
       </template>
 
-      <div 
-        v-loading="loading"
-        class="content-section"
-      >
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="运行状态">
-            <el-tag 
-              :type="status.running ? 'success' : 'danger'"
-            >
-              {{ status.running ? '运行中' : '已停止' }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="运行时间">
-            {{ formatUptime(status.uptime) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="CPU 使用率">
-            {{ status.cpuUsage }}%
-          </el-descriptions-item>
-          <el-descriptions-item label="内存使用">
-            {{ formatMemory(status.memoryUsage) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="订阅数量">
-            {{ status.subscriptionCount }}
-          </el-descriptions-item>
-          <el-descriptions-item label="节点数量">
-            {{ status.nodeCount }}
-          </el-descriptions-item>
-        </el-descriptions>
+      <div class="node-stats">
+        <div class="stat-item">
+          <div class="stat-value">{{ nodeStats.total }}</div>
+          <div class="stat-label">总节点数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ nodeStats.current }}</div>
+          <div class="stat-label">当前节点</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ nodeStats.slow }}</div>
+          <div class="stat-label">慢速节点</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ nodeStats.failed }}</div>
+          <div class="stat-label">故障节点</div>
+        </div>
       </div>
     </el-card>
 
-    <!-- 代理状态 -->
+    <!-- 当前状态 -->
     <el-card class="card-section">
       <template #header>
         <div class="section-header">
           <div class="header-title">
-            <span>代理状态</span>
+            <span>当前状态</span>
           </div>
         </div>
       </template>
 
-      <div class="content-section">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="系统代理">
-            <el-tag 
-              :type="proxy.enabled ? 'success' : 'info'"
+      <div class="subscription-files">
+        <div class="file-item">
+          <div class="file-label">最终订阅文件</div>
+          <div class="file-link">
+            <el-link 
+              type="primary" 
+              :href="currentStatus.finalSubscription"
+              target="_blank"
             >
-              {{ proxy.enabled ? '已启用' : '未启用' }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="监听地址">
-            {{ proxy.address }}:{{ proxy.port }}
-          </el-descriptions-item>
-          <el-descriptions-item label="当前节点">
-            {{ proxy.currentNode || '未选择' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="连接数">
-            {{ proxy.connections }}
-          </el-descriptions-item>
-          <el-descriptions-item label="上传流量">
-            {{ formatTraffic(proxy.uploadTraffic) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="下载流量">
-            {{ formatTraffic(proxy.downloadTraffic) }}
-          </el-descriptions-item>
-        </el-descriptions>
-
-        <!-- 流量图表 -->
-        <div class="traffic-chart">
-          <div class="chart-title">实时流量</div>
-          <div class="chart-container">
-            <!-- 这里放置流量图表组件 -->
+              {{ currentStatus.finalSubscription }}
+            </el-link>
+          </div>
+        </div>
+        <div class="file-item">
+          <div class="file-label">订阅整合文件</div>
+          <div class="file-link">
+            <el-link 
+              type="primary" 
+              :href="currentStatus.mergedSubscription"
+              target="_blank"
+            >
+              {{ currentStatus.mergedSubscription }}
+            </el-link>
           </div>
         </div>
       </div>
     </el-card>
 
-    <!-- 定时任务 -->
+    <!-- 历史记录 -->
     <el-card class="card-section">
       <template #header>
         <div class="section-header">
           <div class="header-title">
-            <span>定时任务</span>
+            <span>历史记录</span>
           </div>
         </div>
       </template>
 
-      <div class="content-section responsive-table">
-        <el-table :data="tasks" style="width: 100%">
-          <el-table-column 
-            prop="name" 
-            label="任务名称"
-            min-width="120"
-          />
-          <el-table-column 
-            prop="schedule" 
-            label="执行计划"
-            min-width="150"
-          />
-          <el-table-column 
-            prop="lastRun" 
-            label="上次执行"
-            min-width="180"
-          >
-            <template #default="{ row }">
-              {{ formatTime(row.lastRun) }}
-            </template>
-          </el-table-column>
-          <el-table-column 
-            prop="nextRun" 
-            label="下次执行"
-            min-width="180"
-          >
-            <template #default="{ row }">
-              {{ formatTime(row.nextRun) }}
-            </template>
-          </el-table-column>
-          <el-table-column 
-            prop="status" 
-            label="状态"
-            width="100"
-            align="center"
-          >
-            <template #default="{ row }">
-              <el-tag :type="getTaskStatusType(row.status)">
-                {{ row.status }}
-              </el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
+      <div class="history-list">
+        <div 
+          v-for="item in history" 
+          :key="item.time" 
+          class="history-item"
+        >
+          <div class="history-time">{{ formatTime(item.time) }}</div>
+          <div class="history-url">
+            <el-link 
+              type="primary" 
+              :href="item.url"
+              target="_blank"
+            >
+              {{ item.url }}
+            </el-link>
+          </div>
+          <div class="history-actions">
+            <el-button 
+              :icon="CopyDocument"
+              circle
+              @click="copyUrl(item.url)"
+            />
+          </div>
+        </div>
       </div>
     </el-card>
   </div>
@@ -159,99 +110,64 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Refresh } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { CopyDocument } from '@element-plus/icons-vue'
 import { useStore } from '@/stores'
+import type { SystemStatus } from '@/types'
 
 // 状态管理
 const store = useStore()
 
-// 加载状态
-const loading = ref(false)
-
-// 系统状态数据
-const status = ref({
-  running: false,
-  uptime: 0,
-  cpuUsage: 0,
-  memoryUsage: 0,
-  subscriptionCount: 0,
-  nodeCount: 0
+// 节点统计
+const nodeStats = ref({
+  total: 0,
+  current: 0,
+  slow: 0,
+  failed: 0
 })
 
-// 代理状态数据
-const proxy = ref({
-  enabled: false,
-  address: '',
-  port: 0,
-  currentNode: '',
-  connections: 0,
-  uploadTraffic: 0,
-  downloadTraffic: 0
+// 当前状态
+const currentStatus = ref({
+  finalSubscription: '',
+  mergedSubscription: ''
 })
 
-// 定时任务数据
-const tasks = ref([])
+// 历史记录
+const history = ref<SystemStatus['history']>([])
 
-// 刷新状态
-const refreshStatus = async () => {
+// 获取系统状态
+const fetchStatus = async () => {
   try {
-    loading.value = true
     await store.fetchSystemStatus()
-    // 更新状态数据
-    // ...
+    const status = store.systemStatus
+    if (status) {
+      nodeStats.value = status.nodeStats
+      currentStatus.value = status.currentStatus
+      history.value = status.history
+    }
   } catch (error) {
-    console.error('刷新状态失败:', error)
-  } finally {
-    loading.value = false
+    console.error('获取系统状态失败:', error)
   }
 }
 
-// 格式化函数
-const formatUptime = (seconds: number) => {
-  const days = Math.floor(seconds / 86400)
-  const hours = Math.floor((seconds % 86400) / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  return `${days}天 ${hours}小时 ${minutes}分钟`
+// 复制链接
+const copyUrl = async (url: string) => {
+  try {
+    await navigator.clipboard.writeText(url)
+    ElMessage.success('链接已复制')
+  } catch (error) {
+    ElMessage.error('复制失败')
+  }
 }
 
-const formatMemory = (bytes: number) => {
-  const mb = bytes / 1024 / 1024
-  return `${mb.toFixed(1)} MB`
-}
-
-const formatTraffic = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
-}
-
+// 格式化时间
 const formatTime = (time: string) => {
-  if (!time) return '-'
-  return new Date(time).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  })
-}
-
-const getTaskStatusType = (status: string) => {
-  const typeMap: Record<string, string> = {
-    running: 'primary',
-    success: 'success',
-    failed: 'danger',
-    pending: 'info'
-  }
-  return typeMap[status.toLowerCase()] || ''
+  return time.replace(/[T]/g, ' ').slice(5, 16)
 }
 
 // 页面加载时获取状态
 onMounted(() => {
-  refreshStatus()
+  fetchStatus()
 })
 </script>
 
@@ -259,37 +175,83 @@ onMounted(() => {
 @use '@/styles/common.scss';
 
 .status {
-  :deep(.el-descriptions) {
-    margin-bottom: 30px;
+  .node-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    padding: 10px 0;
 
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-
-  .traffic-chart {
-    margin-top: 30px;
-
-    .chart-title {
-      font-size: 16px;
-      font-weight: 500;
-      color: #303133;
-      margin-bottom: 20px;
+    @media screen and (max-width: 768px) {
+      grid-template-columns: repeat(2, 1fr);
     }
 
-    .chart-container {
-      height: 300px;
-      background-color: #f5f7fa;
+    .stat-item {
+      text-align: center;
+      padding: 20px;
+      background-color: var(--el-bg-color-page);
       border-radius: 4px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #909399;
+
+      .stat-value {
+        font-size: 24px;
+        font-weight: 500;
+        color: var(--el-text-color-primary);
+        margin-bottom: 8px;
+      }
+
+      .stat-label {
+        font-size: 14px;
+        color: var(--el-text-color-secondary);
+      }
     }
   }
 
-  :deep(.el-tag) {
-    text-transform: none;
+  .subscription-files {
+    .file-item {
+      margin-bottom: 15px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .file-label {
+        font-size: 14px;
+        color: var(--el-text-color-secondary);
+        margin-bottom: 5px;
+      }
+
+      .file-link {
+        word-break: break-all;
+      }
+    }
+  }
+
+  .history-list {
+    .history-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--el-border-color-lighter);
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .history-time {
+        width: 100px;
+        flex-shrink: 0;
+        color: var(--el-text-color-secondary);
+      }
+
+      .history-url {
+        flex: 1;
+        margin: 0 15px;
+        word-break: break-all;
+      }
+
+      .history-actions {
+        flex-shrink: 0;
+      }
+    }
   }
 }
 </style> 
